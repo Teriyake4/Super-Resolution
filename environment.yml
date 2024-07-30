@@ -1,9 +1,10 @@
-name: super-resolution
 channels:
   - conda-forge
   - defaults
-dependicies:
+dependencies:
   - numpy=1.26.0
   - pillow=10.4.0
+  - python=3.12.4
+  - pip=24.0
   - pip:
     - ffmpeg-python==0.2.0
