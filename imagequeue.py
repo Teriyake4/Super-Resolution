@@ -1,16 +1,23 @@
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 import io
+import sys
+import traceback
 import numpy as np
 import os
 import threading
 import time
 from typing import List
 
-from .utils import getCodec
+from utils import getCodec
 
 import ffmpeg
 from PIL import Image
-from .imagegroup import ImageGroup
+from imagegroup import ImageGroup
+
+if __name__ == "__main__":
+    print(os.environ['PATH'])
+    print("In module products sys.path[0], __package__ ==", sys.path[0], __package__)
 
 
 class ImageQueue:
@@ -18,106 +25,95 @@ class ImageQueue:
     The ImageQueue class is a data structure designed to manage and retrieve images from various sources, 
     such as videos or folders of images. 
     """
-    def __init__(self, queue_size: int, random_seed: int=None, order: List[str]=None, use_cuda: bool=False, batch_size: int=1) -> None:
+    def __init__(self, queueSize: int, randomSeed: int=None, batchSize: int=1, useCuda: bool=False) -> None:
         """
         Constructor for the ImageQueue class.
 
-        :param: queue_size: The maximum number of images that can be stored in the queue at once.
-        :param: random_seed: The seed for whether to shuffle the order of images when retrieving and adding them to the queue. Defaults to None with no shuffling.
-        :param: order: Order in which to retrieve images from
-        :param: use_cuda: Whether to use CUDA for image processing. Defaults to False.
-        :param: batch_size: The size of batches to retrieve from the queue at once. Defaults to 1.
+        :param: queueSize: The maximum number of images that can be stored in the queue at once.
+        :param: randomSeed: The seed for whether to shuffle the order of images when retrieving and adding them to the queue. Defaults to None with no shuffling.
+        :param: useCuda: Whether to use CUDA for image processing. Defaults to False.
+        :param: batchSize: The size of batches to retrieve from the queue at once. Defaults to 1.
         """
-        self.queue_size = queue_size
-        self.available_image_groups = []
-        # self.image_queue = asyncio.Queue(self.queue_size) # either Image or None
-        self.image_queue = deque([], self.queue_size)
-        self.batch_size = batch_size
-        self.random_seed = random_seed
-        self.order = order
-        if self.order is not None:
-            assert self.random_seed is None
-        self.use_cuda = use_cuda
-        self.queue_busy = threading.Event()
-        self.queue_busy.set()
-        if self.random_seed is not None:
-            self.rng = np.random.default_rng(seed=self.random_seed)
+        self.queueSize = queueSize
+        self.availableImageGroups = []
+        # self.image_queue = asyncio.Queue(self.queueSize) # either Image or None
+        self.imageQueue = deque([], self.queueSize)
+        self.total = 0
+        self.batchSize = batchSize
+        self.randomSeed = randomSeed
+        self.useCuda = useCuda
+        self.queueBusy = threading.Event()
+        self.queueBusy.set()
+        if self.randomSeed is not None:
+            self.rng = np.random.default_rng(seed=self.randomSeed)
 
-    def addVideos(self, folder_path: str) -> None:
+    def addVideos(self, videoPaths: List[str]) -> None:
         """
         Adds videos from the specified folder to the queue.
 
         This method takes a folder path as input and adds all the videos in that folder to the queue. 
         Each video is represented by an ImageGroup object.
 
-        :param: folder_path: The path to the folder containing the videos to be added to the queue.
+        :param: folderPath: The path to the folder containing the videos to be added to the queue.
         """
-        video_list = os.listdir(folder_path)
-        new_video_group = [] * len(video_list)
+        newVideoGroup = [ImageGroup] * len(videoPaths)
         i = 0
-        for video in video_list:
-            path = os.path.join(folder_path, video)
+        for video in videoPaths:
+            frames = int(ffmpeg.probe(video)["streams"][0]["nb_frames"])
+            self.total += frames
             group = ImageGroup(
-                path,
-                int(ffmpeg.probe(path)["streams"][0]["nb_frames"]),
-                self.batch_size
+                video,
+                frames,
+                self.batchSize
             )
-            if self.random_seed is not None:
+            if self.randomSeed is not None:
                 group.randomize(self.rng)
-            new_video_group[i] = group
+            newVideoGroup[i] = group
             i += 1
-        self.available_image_groups.extend(new_video_group)
+        self.availableImageGroups.extend(newVideoGroup)
 
-    def addVideo(self, video_path: str) -> None:
+    def addVideo(self, videoPath: str) -> None:
         """
         Adds a single video to the queue.
 
         This method takes a video path as input and adds it to the queue. 
         The video is represented by an ImageGroup object.
 
-        :param: video_path: The path to the video to be added to the queue.
+        :param: videoPath: The path to the video to be added to the queue.
         """
+        frames = int(ffmpeg.probe(videoPath)["streams"][0]["nb_frames"])
+        self.total += frames
         group = ImageGroup(
-            video_path,
-            int(ffmpeg.probe(video_path)["streams"][0]["nb_frames"]),
-            self.batch_size
+            videoPath,
+            frames,
+            self.batchSize
         )
-        if self.random_seed is not None:
+        if self.randomSeed is not None:
             group.randomize(self.rng)
-        self.available_image_groups.append(group)
-        
-    def addImages(self, folder_path: str) -> None:
+        self.availableImageGroups.append(group)
+    
+    def addImages(self, imagePaths: List[str]) -> None:
         """
-        Adds images from the specified folder to the queue.
+        Adds multiple images to the queue.
 
-        This method takes a folder path as input and adds all the images in that folder to the queue. 
-        Image in the folder are represented by an ImageGroup object.
-
-        :param: folder_path: The path to the folder containing the images to be added to the queue.
+        :param: imagePaths: The list of images' path to be added to the queue.
         """
-        image_list = os.listdir(folder_path)
-        image_paths = [str] * len(image_list)
-        i = 0
-        for image in image_list:
-            image_paths[i] = os.path.join(folder_path, image)
-            i += 1
-        group = ImageGroup(image_paths, len(image_list))
-        if self.random_seed is not None:
+        self.total += len(imagePaths)
+        group = ImageGroup(imagePaths, len(imagePaths))
+        if self.randomSeed is not None:
                 group.randomize(self.rng)
-        self.available_image_groups.append(group)
+        self.availableImageGroups.append(group)
 
-    def startQueue(self) -> None:
+    def startQueue(self, endWhenEmpty: bool=True) -> None:
         """
         Starts the queue processing thread.
 
-        This method creates a new thread that continuously processes and add images to the active queue. 
-        The thread runs indefinitely until explicitly stopped.
+        This method starts the queue which continuously processes and adds images to the active queue. 
+        The queue will stop processing once all images have been processed. 
         """
-        # asyncio.create_task(self.__init_queue())
         thread = threading.Thread(target=self.__intitQueue)
+        thread.daemon = True
         thread.start()
-        # process = multiprocessing.Process(target=self.__init_queue)
-        # process.start()
 
     def __intitQueue(self) -> None:
         """
@@ -126,60 +122,61 @@ class ImageQueue:
         This method continuously processes and adds images to the active queue. 
         It runs indefinitely until explicitly stopped.
         """
-        while len(self.available_image_groups) > 0:
-            queue_full = self.imagesInQueue() >= self.queue_size
-            space_for_batch = self.queue_size - self.imagesInQueue() < self.batch_size
+        while len(self.availableImageGroups) > 0:
+            queue_full = (self.imagesInQueue() >= self.queueSize)
+            space_for_batch = self.queueSize - self.imagesInQueue() < self.batchSize
             if queue_full or space_for_batch: # pause adding to queue when queue is full
                 time.sleep(0.1)
                 continue
-            group_index = 0
-            if self.random_seed is not None:
-                group_index = self.rng.integers(low=0, high=len(self.available_image_groups))
-            group = self.available_image_groups[group_index] # select random video/group of images
-            if not group.has_images(): # check if there are any available images
-                self.available_image_groups.pop(group_index)
+            groupIndex = 0
+            if self.randomSeed is not None:
+                groupIndex = self.rng.integers(low=0, high=len(self.availableImageGroups))
+            group = self.availableImageGroups[groupIndex] # select random video/group of images
+            if not group.hasImages(): # check if there are any available images
+                self.availableImageGroups.pop(groupIndex)
                 continue
-            image_index = group.get_next()
-            if group.is_video():
-                images = self.__decodeFrames(group.get_path(image_index), image_index)
+            imageIndex = group.getNext()
+            if group.isVideo():
+                images = self.__decodeFrames(group.getPath(imageIndex), imageIndex)
                 # if self.random:
                 #     temp_array = np.array(images)
                 #     self.rng.shuffle(temp_array)
                 #     images = temp_array.tolist()
             else:
                 try:
-                    images = Image.open(group.get_path(image_index[0]))
-                except:
-                    print(f"Error opening {group.get_path(image_index[0])}")
+                    images = Image.open(group.getPath(imageIndex[0]))
+                except Exception as e:
+                    print(f"Error opening {group.get_path(imageIndex[0])}")
+                    traceback.print_exc()
                     continue
             self.__put(images)
 
-    def __decodeFrames(self, video_path: str, frame_index: List[int]) -> List[Image.Image]:
+    def __decodeFrames(self, videoPath: str, frameIndex: List[int]) -> List[Image.Image]:
         """
         Decodes frames from the specified video at the given indices.
 
         This method takes a video path and a list of frame indices as input and returns a list of PIL images 
         representing the decoded frames.
 
-        :param: video_path: The path to the video from which to decode frames.
-        :param: frame_index: A list of integers representing the indices of the frames to be decoded.
+        :param: videoPath: The path to the video from which to decode frames.
+        :param: frameIndex: A list of integers representing the indices of the frames to be decoded.
         :return: A list of PIL images representing the decoded frames.
         """
-        vcodec = {'vcodec': f"{getCodec(video_path)}_cuvid"} if self.use_cuda else {}
+        vcodec = {'vcodec': f"{getCodec(videoPath)}_cuvid"} if self.useCuda else {}
         select = ""
-        for i in frame_index:
+        for i in frameIndex:
             select += f"eq(n,{i})+"
         select = select[:-1] # removes last "+" sign
         out, err = (
             ffmpeg
-            .input(video_path, **vcodec)
-            .filter("select", select) # f"gte(n,{frame_index})"
-            .output("pipe:", vsync="vfr", vframes=len(frame_index), format="image2pipe", vcodec="png", loglevel="quiet")
+            .input(videoPath, **vcodec)
+            .filter("select", select) # f"gte(n,{frameIndex})"
+            .output("pipe:", vsync="vfr", vframes=len(frameIndex), format="image2pipe", vcodec="png", loglevel="quiet")
             .run(capture_stdout=True) # run_async
         )
         frames = out.split(b"\x89PNG\r\n\x1a\n")
         # Convert each frame to a PIL Image
-        images = [Image.Image] * len(frame_index)
+        images = [Image.Image] * len(frameIndex)
         i = 0
         for frame in frames:
             if frame:
@@ -197,15 +194,15 @@ class ImageQueue:
 
         :param: image: A PIL image or a list of PIL images to be added to the queue.
         """
-        self.queue_busy.wait()
-        self.queue_busy.clear()
+        self.queueBusy.wait()
+        self.queueBusy.clear()
         if isinstance(image, list):
-            self.image_queue.extend(image)
+            self.imageQueue.extend(image)
         else:
-            self.image_queue.append(image)
-        self.queue_busy.set()
+            self.imageQueue.append(image)
+        self.queueBusy.set()
 
-    def get(self) -> Image.Image | None:
+    def get(self, wait: bool = True) -> Image.Image | None:
         """
         Retrieves an image from the queue.
 
@@ -213,13 +210,16 @@ class ImageQueue:
 
         :return: An image from the queue or None if the queue is empty.
         """
-        self.queue_busy.wait()
-        self.queue_busy.clear()
-        if len(self.image_queue) == 0:
-            self.queue_busy.set()
+        if wait:
+            while self.imagesInQueue() == 0:
+                time.sleep(0.0001)
+        self.queueBusy.wait()
+        self.queueBusy.clear()
+        if len(self.imageQueue) == 0:
+            self.queueBusy.set()
             return None
-        image = self.image_queue.popleft()
-        self.queue_busy.set()
+        image = self.imageQueue.popleft()
+        self.queueBusy.set()
         return image
     
     def imagesRemaining(self) -> int:
@@ -229,8 +229,8 @@ class ImageQueue:
         :return: The total number of remaining images in the queue and available image groups.
         """
         remaining = self.imagesInQueue()
-        for group in self.available_image_groups:
-            remaining += group.num_remaining()
+        for group in self.availableImageGroups:
+            remaining += group.numRemaining()
         return remaining
     
     def imagesInQueue(self) -> int:
@@ -239,8 +239,11 @@ class ImageQueue:
 
         :return: The total number of images currently in the queue.
         """
-        self.queue_busy.wait()
-        self.queue_busy.clear()
-        remaining = len(self.image_queue)
-        self.queue_busy.set()
+        self.queueBusy.wait()
+        self.queueBusy.clear()
+        remaining = len(self.imageQueue)
+        self.queueBusy.set()
         return remaining
+
+    def getTotal(self) -> int:
+        return self.total
