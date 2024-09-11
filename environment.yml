@@ -2,9 +2,9 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.12.4
+  - python=3.12.2
   - pip=24.0
-  - numpy=1.26.0
+  - numpy=1.26.4
   - pillow=10.4.0
   - pytorch=2.3.0
   - ipykernel=6.28.0

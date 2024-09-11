@@ -155,3 +155,4 @@ test media/
 .vscode/
 .conda/
 .DS_Store
+filelist.txt
