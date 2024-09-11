@@ -36,7 +36,7 @@ class SRDataset(Dataset):
         img = self.queue.get()
         # TODO: REMOVE
         import os
-        print(index)
+        # print(index)
         # img.save(os.path.join("test media/output/", f"{index}.png"))
 
         img.convert("RGB")

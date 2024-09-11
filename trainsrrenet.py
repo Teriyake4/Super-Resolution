@@ -12,7 +12,7 @@ dataPath = "filelist.txt"
 queueSize = 4096
 randomSeed = None
 device = torch.device(selectDevice())
-batchSize = 1
+batchSize = 451
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
 
@@ -31,6 +31,8 @@ workers = 0  # number of workers for loading data in the DataLoader
 print_freq = 500  # print training status once every __ batches
 lr = 1e-4  # learning rate
 grad_clip = None  # clip if gradients are exploding
+
+print(device)
 
 cudnn.benchmark = True
 
@@ -63,7 +65,7 @@ def main():
     data = readFileList(dataPath)
     videos = [path for path in data if path.endswith(".mp4")]
     images = [path for path in data if not path.endswith(".mp4")]
-    queue = ImageQueue(queueSize=queueSize, randomSeed=randomSeed, batchSize=batchSize, useCuda=(selectDevice() == "cuda"))
+    queue = ImageQueue(queueSize=queueSize, randomSeed=randomSeed, batchSize=batchSize, device=device)
     queue.addVideos(videos)
     queue.addImages(images)
     train_dataset = SRDataset(queue,
@@ -77,9 +79,13 @@ def main():
 
     # Total number of epochs to train for
     epochs = int(iterations // len(train_loader) + 1)
+    print(f"Total epochs {epochs}")
 
     # Epochs
     for epoch in range(start_epoch, epochs):
+        import time
+
+        current_time = time.time()
         # One epoch's training
         train(train_loader=train_loader,
               model=model,
@@ -92,6 +98,9 @@ def main():
                     'model': model,
                     'optimizer': optimizer},
                    'checkpoint_srresnet.pth.tar')
+        print(f"Saved checkpoint at epoch {epoch}")
+        print("Current time in seconds since the epoch:", time.time() - current_time)
+
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -132,7 +141,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         # Clip gradients, if necessary
         if grad_clip is not None:
-            clipGradient(optimizer, grad_clip)
+            clip_gradient(optimizer, grad_clip)
 
         # Update model
         optimizer.step()

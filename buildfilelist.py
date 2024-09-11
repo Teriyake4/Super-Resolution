@@ -6,7 +6,7 @@ from PIL import Image
 import utils
 
 
-pathList = ["/Users/teriyake/Documents/Projects/Coding Projects/Python Projects/Super-Resolution/"]
+pathList = ["/Users/teriyake/Documents/Projects/Coding Projects/Python Projects/Super-Resolution/test media/output/"]
 fileList = "filelist.txt"
 
 # List all videos and images as txt in random order

@@ -71,6 +71,8 @@ class ImageGroup:
                 next_batch.append(self.availableImages.popleft())
             except IndexError:
                 break
+        # TODO remove later
+        self.availableImages.extend(next_batch)
         return next_batch
 
     def hasImages(self) -> bool:

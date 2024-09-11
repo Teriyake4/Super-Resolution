@@ -56,11 +56,47 @@ def readFileList(path: str) -> List[str]:
         file.close()
     return [line.strip() for line in lines]
 
-def convertImage(image: Image.Image, source: str, target: str):
+def create_data_lists(train_folders, test_folders, min_size, output_folder):
+    """
+    Create lists for images in the training set and each of the test sets.
+
+    :param train_folders: folders containing the training images; these will be merged
+    :param test_folders: folders containing the test images; each test folder will form its own test set
+    :param min_size: minimum width and height of images to be considered
+    :param output_folder: save data lists here
+    """
+    print("\nCreating data lists... this may take some time.\n")
+    train_images = list()
+    for d in train_folders:
+        for i in os.listdir(d):
+            img_path = os.path.join(d, i)
+            img = Image.open(img_path, mode='r')
+            if img.width >= min_size and img.height >= min_size:
+                train_images.append(img_path)
+    print("There are %d images in the training data.\n" % len(train_images))
+    with open(os.path.join(output_folder, 'train_images.json'), 'w') as j:
+        json.dump(train_images, j)
+
+    for d in test_folders:
+        test_images = list()
+        test_name = d.split("/")[-1]
+        for i in os.listdir(d):
+            img_path = os.path.join(d, i)
+            img = Image.open(img_path, mode='r')
+            if img.width >= min_size and img.height >= min_size:
+                test_images.append(img_path)
+        print("There are %d images in the %s test data.\n" % (len(test_images), test_name))
+        with open(os.path.join(output_folder, test_name + '_test_images.json'), 'w') as j:
+            json.dump(test_images, j)
+
+    print("JSONS containing lists of Train and Test images have been saved to %s\n" % output_folder)
+
+
+def convert_image(img, source, target):
     """
     Convert an image from a source format to a target format.
 
-    :param image: image
+    :param img: image
     :param source: source format, one of 'pil' (PIL image), '[0, 1]' or '[-1, 1]' (pixel value ranges)
     :param target: target format, one of 'pil' (PIL image), '[0, 255]', '[0, 1]', '[-1, 1]' (pixel value ranges),
                    'imagenet-norm' (pixel values standardized by imagenet mean and std.),
@@ -73,40 +109,41 @@ def convertImage(image: Image.Image, source: str, target: str):
 
     # Convert from source to [0, 1]
     if source == 'pil':
-        image = FT.to_tensor(image)
+        img = FT.to_tensor(img)
 
     elif source == '[0, 1]':
         pass  # already in [0, 1]
 
     elif source == '[-1, 1]':
-        image = (image + 1.) / 2.
+        img = (img + 1.) / 2.
 
     # Convert from [0, 1] to target
     if target == 'pil':
-        image = FT.to_pil_image(image)
+        img = FT.to_pil_image(img)
 
     elif target == '[0, 255]':
-        image = 255. * image
+        img = 255. * img
 
     elif target == '[0, 1]':
         pass  # already in [0, 1]
 
     elif target == '[-1, 1]':
-        image = 2. * image - 1.
+        img = 2. * img - 1.
 
     elif target == 'imagenet-norm':
-        if image.ndimension() == 3:
-            image = (image - imagenet_mean) / imagenet_std
-        elif image.ndimension() == 4:
-            image = (image - imagenet_mean_cuda) / imagenet_std_cuda
+        if img.ndimension() == 3:
+            img = (img - imagenet_mean) / imagenet_std
+        elif img.ndimension() == 4:
+            img = (img - imagenet_mean_cuda) / imagenet_std_cuda
 
     elif target == 'y-channel':
         # Based on definitions at https://github.com/xinntao/BasicSR/wiki/Color-conversion-in-SR
         # torch.dot() does not work the same way as numpy.dot()
         # So, use torch.matmul() to find the dot product between the last dimension of an 4-D tensor and a 1-D tensor
-        image = torch.matmul(255. * image.permute(0, 2, 3, 1)[:, 4:-4, 4:-4, :], rgb_weights) / 255. + 16.
+        img = torch.matmul(255. * img.permute(0, 2, 3, 1)[:, 4:-4, 4:-4, :], rgb_weights) / 255. + 16.
 
-    return image
+    return img
+
 
 class ImageTransforms(object):
     """
@@ -161,10 +198,11 @@ class ImageTransforms(object):
         assert hr_img.width == lr_img.width * self.scaling_factor and hr_img.height == lr_img.height * self.scaling_factor
 
         # Convert the LR and HR image to the required type
-        lr_img = convertImage(lr_img, source='pil', target=self.lr_img_type)
-        hr_img = convertImage(hr_img, source='pil', target=self.hr_img_type)
+        lr_img = convert_image(lr_img, source='pil', target=self.lr_img_type)
+        hr_img = convert_image(hr_img, source='pil', target=self.hr_img_type)
 
         return lr_img, hr_img
+
 
 class AverageMeter(object):
     """
@@ -186,7 +224,8 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def clipGradient(optimizer, grad_clip):
+
+def clip_gradient(optimizer, grad_clip):
     """
     Clips gradients computed during backpropagation to avoid explosion of gradients.
 
@@ -199,7 +238,7 @@ def clipGradient(optimizer, grad_clip):
                 param.grad.data.clamp_(-grad_clip, grad_clip)
 
 
-def saveCheckpoint(state, filename):
+def save_checkpoint(state, filename):
     """
     Save model checkpoint.
 
@@ -208,7 +247,8 @@ def saveCheckpoint(state, filename):
 
     torch.save(state, filename)
 
-def adjustLearningRate(optimizer, shrink_factor):
+
+def adjust_learning_rate(optimizer, shrink_factor):
     """
     Shrinks learning rate by a specified factor.
 

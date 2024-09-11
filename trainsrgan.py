@@ -125,8 +125,8 @@ def main():
 
         # At the halfway point, reduce learning rate to a tenth
         if epoch == int((iterations / 2) // len(train_loader) + 1):
-            adjustLearningRate(optimizer_g, 0.1)
-            adjustLearningRate(optimizer_d, 0.1)
+            adjust_learning_rate(optimizer_g, 0.1)
+            adjust_learning_rate(optimizer_d, 0.1)
 
         # One epoch's training
         train(train_loader=train_loader,
@@ -187,7 +187,7 @@ def train(train_loader, generator, discriminator, truncated_vgg19, content_loss_
 
         # Generate
         sr_imgs = generator(lr_imgs)  # (N, 3, 96, 96), in [-1, 1]
-        sr_imgs = convertImage(sr_imgs, source='[-1, 1]', target='imagenet-norm')  # (N, 3, 96, 96), imagenet-normed
+        sr_imgs = convert_image(sr_imgs, source='[-1, 1]', target='imagenet-norm')  # (N, 3, 96, 96), imagenet-normed
 
         # Calculate VGG feature maps for the super-resolved (SR) and high resolution (HR) images
         sr_imgs_in_vgg_space = truncated_vgg19(sr_imgs)
@@ -207,7 +207,7 @@ def train(train_loader, generator, discriminator, truncated_vgg19, content_loss_
 
         # Clip gradients, if necessary
         if grad_clip is not None:
-            clipGradient(optimizer_g, grad_clip)
+            clip_gradient(optimizer_g, grad_clip)
 
         # Update generator
         optimizer_g.step()
@@ -236,7 +236,7 @@ def train(train_loader, generator, discriminator, truncated_vgg19, content_loss_
 
         # Clip gradients, if necessary
         if grad_clip is not None:
-            clipGradient(optimizer_d, grad_clip)
+            clip_gradient(optimizer_d, grad_clip)
 
         # Update discriminator
         optimizer_d.step()

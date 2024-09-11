@@ -25,7 +25,7 @@ class ImageQueue:
     The ImageQueue class is a data structure designed to manage and retrieve images from various sources, 
     such as videos or folders of images. 
     """
-    def __init__(self, queueSize: int, randomSeed: int=None, batchSize: int=1, useCuda: bool=False) -> None:
+    def __init__(self, queueSize: int, randomSeed: int=None, batchSize: int=1, device: str="cpu") -> None:
         """
         Constructor for the ImageQueue class.
 
@@ -41,7 +41,7 @@ class ImageQueue:
         self.total = 0
         self.batchSize = batchSize
         self.randomSeed = randomSeed
-        self.useCuda = useCuda
+        self.device = device
         self.queueBusy = threading.Event()
         self.queueBusy.set()
         if self.randomSeed is not None:
@@ -59,6 +59,7 @@ class ImageQueue:
         newVideoGroup = [ImageGroup] * len(videoPaths)
         i = 0
         for video in videoPaths:
+            print(video)
             frames = int(ffmpeg.probe(video)["streams"][0]["nb_frames"])
             self.total += frames
             group = ImageGroup(
@@ -162,18 +163,22 @@ class ImageQueue:
         :param: frameIndex: A list of integers representing the indices of the frames to be decoded.
         :return: A list of PIL images representing the decoded frames.
         """
-        vcodec = {'vcodec': f"{getCodec(videoPath)}_cuvid"} if self.useCuda else {}
+        hwaccel = {}
+        if self.device == "cuda":
+            hwaccel = {"vcodec": f"{getCodec(videoPath)}_cuvid"}
+        elif self.device == "mps":
+            hwaccel = {"hwaccel": "videotoolbox"}
         select = ""
         for i in frameIndex:
             select += f"eq(n,{i})+"
         select = select[:-1] # removes last "+" sign
         out, err = (
-            ffmpeg
-            .input(videoPath, **vcodec)
-            .filter("select", select) # f"gte(n,{frameIndex})"
-            .output("pipe:", vsync="vfr", vframes=len(frameIndex), format="image2pipe", vcodec="png", loglevel="quiet")
-            .run(capture_stdout=True) # run_async
-        )
+                ffmpeg
+                .input(videoPath, **hwaccel)
+                .filter("select", select) # f"gte(n,{frameIndex})"
+                .output("pipe:", vsync="vfr", vframes=len(frameIndex), format="image2pipe", vcodec="png", loglevel="quiet")
+                .run(capture_stdout=True) # run_async
+            )
         frames = out.split(b"\x89PNG\r\n\x1a\n")
         # Convert each frame to a PIL Image
         images = [Image.Image] * len(frameIndex)
