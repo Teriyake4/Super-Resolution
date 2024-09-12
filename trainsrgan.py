@@ -11,7 +11,7 @@ from models import Generator, Discriminator, TruncatedVGG19
 dataPath = "filelist.txt"
 queueSize = 4096
 randomSeed = None
-device = torch.device(selectDevice())
+device = torch.device(getDevice())
 batchSize = 1
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
@@ -105,7 +105,7 @@ def main():
     data = readFileList(dataPath)
     videos = [path for path in data if path.endswith(".mp4")]
     images = [path for path in data if not path.endswith(".mp4")]
-    queue = ImageQueue(queueSize=queueSize, randomSeed=randomSeed, batchSize=batchSize, useCuda=(selectDevice() == "cuda"))
+    queue = ImageQueue(queueSize=queueSize, randomSeed=randomSeed, batchSize=batchSize, useCuda=(getDevice() == "cuda"))
     queue.addVideos(videos)
     queue.addImages(images)
     train_dataset = SRDataset(queue,

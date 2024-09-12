@@ -2,17 +2,16 @@ import time
 from torch import nn
 import torch
 from dataset import SRDataset
-from imagequeue import ImageQueue
 from models import SRResNet
 from utils import *
 import torch.backends.cudnn as cudnn
 
 
-dataPath = "filelist.txt"
+video_path = "test media/out.mp4"
 queueSize = 4096
 randomSeed = None
-device = torch.device(selectDevice())
-batchSize = 451
+device = torch.device(getDevice())
+batchSize = 1
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
 
@@ -62,13 +61,8 @@ def main():
     criterion = nn.MSELoss().to(device)
 
     # Custom dataloaders
-    data = readFileList(dataPath)
-    videos = [path for path in data if path.endswith(".mp4")]
-    images = [path for path in data if not path.endswith(".mp4")]
-    queue = ImageQueue(queueSize=queueSize, randomSeed=randomSeed, batchSize=batchSize, device=device)
-    queue.addVideos(videos)
-    queue.addImages(images)
-    train_dataset = SRDataset(queue,
+    
+    train_dataset = SRDataset(video_path,
                               split="train",
                               crop_size=crop_size,
                               scaling_factor=scaling_factor,

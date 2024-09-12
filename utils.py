@@ -1,3 +1,4 @@
+import io
 import os
 import random
 import subprocess
@@ -19,11 +20,9 @@ imagenet_mean_cuda = torch.FloatTensor([0.485, 0.456, 0.406]).to(device).unsquee
 imagenet_std_cuda = torch.FloatTensor([0.229, 0.224, 0.225]).to(device).unsqueeze(0).unsqueeze(2).unsqueeze(3)
 
 
-def selectDevice() -> str:
+def getDevice() -> str:
     """
-    Check if CUDA is installed and available on the system.
-
-    :return: True if CUDA is installed and available, False otherwise.
+    Check for any hardware acceleration, otherwise return cpu
     """
     if torch.backends.mps.is_available():
         return "mps"
@@ -56,40 +55,22 @@ def readFileList(path: str) -> List[str]:
         file.close()
     return [line.strip() for line in lines]
 
-def create_data_lists(train_folders, test_folders, min_size, output_folder):
-    """
-    Create lists for images in the training set and each of the test sets.
-
-    :param train_folders: folders containing the training images; these will be merged
-    :param test_folders: folders containing the test images; each test folder will form its own test set
-    :param min_size: minimum width and height of images to be considered
-    :param output_folder: save data lists here
-    """
-    print("\nCreating data lists... this may take some time.\n")
-    train_images = list()
-    for d in train_folders:
-        for i in os.listdir(d):
-            img_path = os.path.join(d, i)
-            img = Image.open(img_path, mode='r')
-            if img.width >= min_size and img.height >= min_size:
-                train_images.append(img_path)
-    print("There are %d images in the training data.\n" % len(train_images))
-    with open(os.path.join(output_folder, 'train_images.json'), 'w') as j:
-        json.dump(train_images, j)
-
-    for d in test_folders:
-        test_images = list()
-        test_name = d.split("/")[-1]
-        for i in os.listdir(d):
-            img_path = os.path.join(d, i)
-            img = Image.open(img_path, mode='r')
-            if img.width >= min_size and img.height >= min_size:
-                test_images.append(img_path)
-        print("There are %d images in the %s test data.\n" % (len(test_images), test_name))
-        with open(os.path.join(output_folder, test_name + '_test_images.json'), 'w') as j:
-            json.dump(test_images, j)
-
-    print("JSONS containing lists of Train and Test images have been saved to %s\n" % output_folder)
+def extractFrames(path: str) -> List[Image.Image]:
+    numFrames = int(ffmpeg.probe(path)["streams"][0]["nb_frames"])
+    hwaccel = {}
+    device = getDevice()
+    if device == "cuda":
+        hwaccel = {"vcodec": f"{getCodec(path)}_cuvid"}
+    elif device == "mps":
+        hwaccel = {"hwaccel": "videotoolbox"}
+    out, err = (
+                ffmpeg
+                .input(path, **hwaccel)
+                .output("pipe:", vsync="vfr", vframes=numFrames, format="image2pipe", vcodec="png", loglevel="quiet")
+                .run(capture_stdout=True) # run_async
+            )
+    frames = out.split(b"\x89PNG\r\n\x1a\n")
+    return [Image.open(io.BytesIO(b"\x89PNG\r\n\x1a\n" + frame)) for frame in frames if frame]
 
 
 def convert_image(img, source, target):
