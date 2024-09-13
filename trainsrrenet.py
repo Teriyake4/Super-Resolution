@@ -29,7 +29,7 @@ print_freq = 500  # print training status once every __ batches
 lr = 1e-4  # learning rate
 grad_clip = None  # clip if gradients are exploding
 
-print(device)
+print(f"Device: {device}")
 
 cudnn.benchmark = True
 

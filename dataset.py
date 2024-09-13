@@ -43,17 +43,25 @@ class SRDataset(Dataset):
         if self.images[index] is None:
             hwaccel = {}
             if self.device == "cuda":
-                hwaccel = {"vcodec": f"{self.codec}_cuvid"}
+                hwaccel = {"hwaccel": "cuda"}
             elif self.device == "mps":
                 hwaccel = {"hwaccel": "videotoolbox"}
-            out, _ = (
-                ffmpeg
-                .input(self.video_path, ss=index, **hwaccel) # noaccurate_seek=None,
-                .output('pipe:', vframes=1, format='image2', vcodec='png', loglevel="quiet")
-                .run(capture_stdout=True)
-            )
+            try:
+                out, err = ( # 27854
+                    ffmpeg
+                    .input(self.video_path, ss=index, **hwaccel) # noaccurate_seek=None,
+                    .output('pipe:', vframes=1, format='image2', vcodec='png') # loglevel="quiet"
+                    .run(capture_stdout=True, capture_stderr=True)
+                )
+            except ffmpeg.Error as e:
+                print(f"Index: : {index}")
+                print('stdout:', e.stdout.decode('utf8'))
+                print('stderr:', e.stderr.decode('utf8'))
+                print(f"err {e.stderr}")
+                raise e
             self.images[index] = Image.open(io.BytesIO(out))
         img = self.images[index]
+        # print(f"Index: : {index}")
 
         # TODO: REMOVE
         import os
