@@ -57,7 +57,7 @@ class SRDataset(Dataset):
 
         # TODO: REMOVE
         import os
-        img.save(os.path.join("test media/output/", f"{index}.png"))
+        # img.save(os.path.join("test media/output/", f"{index}.png"))
         # print(f"Got {index}")
         img.convert("RGB")
         if img.width <= 96 or img.height <= 96:

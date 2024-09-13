@@ -99,6 +99,7 @@ def main():
 
     # Custom dataloaders
     train_dataset = SRDataset(video_path,
+                              device,
                               split="train",
                               crop_size=crop_size,
                               scaling_factor=scaling_factor,

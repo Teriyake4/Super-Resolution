@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 
 
 video_path = "D:/Videos/out.mp4"
-video_path = "test media/out.mp4"
+# video_path = "test media/out.mp4"
 device = torch.device(getDevice())
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
