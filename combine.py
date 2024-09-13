@@ -9,6 +9,8 @@ output = "D:/Videos/out.mp4"
 
 framerate = 1
 device = utils.getDevice()
+if device == "cuda":
+    device = "cpu"
 
 
 def checkVideoValidity(filePath: str) -> bool:
@@ -60,15 +62,13 @@ if device == "cuda": # for hwaccel
     command.extend([
         "-c:v", "hevc_nvenc",
         "-preset", "slow"
-        ])
-elif device == "mps":
-    command.extend([
-        "-c:v", "hevc_videotoolbox"
-        ])
-
-command.extend([
-        "-q:v", "80"
     ])
+elif device == "mps":
+    command.extend(["-c:v", "hevc_videotoolbox"])
+else:
+    command.extend(["-c:v", "libx265"])
+
+command.extend(["-q:v", "80"])
     
 command.append(output)
 print(command)
