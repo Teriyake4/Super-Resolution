@@ -106,7 +106,7 @@ def extractFrames(path: str) -> List[Image.Image]:
     out, err = (
                 ffmpeg
                 .input(path, **hwaccel)
-                .filter("filter", select)
+                # .filter("filter", select)
                 .output("pipe:", vsync="vfr", vframes=numFrames, format="image2pipe", vcodec="png", loglevel="quiet")
                 .run(capture_stdout=True) # run_async
             )

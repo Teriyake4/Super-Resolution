@@ -1,55 +1,47 @@
+import io
 import os
 from typing import List
+from PIL import Image
 
 import ffmpeg
 
 import utils
 
 
-input = "/Users/teriyake/Documents/Projects/Coding Projects/Python Projects/Super-Resolution/test media/output/"
-output = "/Users/teriyake/Documents/Projects/Coding Projects/Python Projects/Super-Resolution/test media/output/"
+input = "test media/out.mp4"
+output = "/test media/output/"
 
 framerate = 1
-device = utils.get_device()
+device = utils.getDevice()
 
 # List all videos and images as txt in random order
 # breaking up videos?
-def checkVideoValidity(filePath: str) -> bool:
-    if not os.path.exists(filePath):
-        return False
-    root, extension = os.path.splitext(filePath)
-    return extension == ".mp4"
-
-def getVideos(path: str) -> List[str]:
-    fileList = []
-    for root, dirs, files in os.walk(path):
-        dirs = [os.path.join(root, d) for d in dirs]
-        files = [os.path.join(root, f) for f in files if checkVideoValidity(os.path.join(root, f))]
-        fileList.extend(files)
-    return fileList
-
-def convertVideo(path: str) -> int:
-    # ffmpeg -hwaccel videotoolbox -i "Valorant 2022.06.02 - 14.30.39.03.DVR.mp4" -vf fps=1 frame_%04d.png
-    frames = int(ffmpeg.probe(video)["streams"][0]["nb_frames"])
-    hwaccel = {}
-    if device == "cuda":
-        hwaccel = {"hwaccel": "cuvid"}
-    elif device == "mps":
-        hwaccel = {"hwaccel": "videotoolbox"}
-
-videoList = []
-for path in pathList:
-    if not os.path.exists(path):
-        continue
-    videoList = getVideos(path)
-print("Finished reading")
-
-totalFrames = 0
-for video in videoList:
-    totalFrames += int(ffmpeg.probe(video)["streams"][0]["nb_frames"])
-
-digits = len(str(totalFrames))
-framesCompleted = 0
-for video in videoList:
-    print(f"Converting {video}")
-    convertVideo(video, framerate, digits, )
+# ffmpeg -hwaccel videotoolbox -i "Valorant 2022.06.02 - 14.30.39.03.DVR.mp4" -vf fps=1 frame_%04d.png
+# frames = int(ffmpeg.probe(input)["streams"][0]["nb_frames"])
+# hwaccel = {}
+# if device == "cuda":
+#     hwaccel = {"hwaccel": "cuvid"}
+# elif device == "mps":
+#     hwaccel = {"hwaccel": "videotoolbox"}
+numFrames = int(ffmpeg.probe(input)["streams"][0]["nb_frames"])
+hwaccel = {}
+device = utils.getDevice()
+if device == "cuda":
+    hwaccel = {"vcodec": f"{utils.etCodec(input)}_cuvid"}
+if device == "mps":
+    hwaccel = {"hwaccel": "videotoolbox"}
+out, err = (
+    ffmpeg
+    .input(input, **hwaccel)
+    # .filter("filter", select)
+    .output("pipe:", vsync="vfr", vframes=numFrames, format="image2pipe", vcodec="png") # loglevel="quiet"
+    .run(capture_stdout=True) # run_async
+)
+print(err)
+frames = out.split(b"\x89PNG\r\n\x1a\n")
+i = 0
+for frame in frames:
+    if frame:
+        i += 1
+        image = Image.open(io.BytesIO(b"\x89PNG\r\n\x1a\n" + frame))
+        image.save(f"{output}{i}.png")

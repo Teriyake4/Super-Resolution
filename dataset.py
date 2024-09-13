@@ -1,4 +1,9 @@
+import io
+import subprocess
+import ffmpeg
+import numpy as np
 from torch.utils.data import Dataset
+from PIL import Image
 
 from utils import ImageTransforms
 import utils
@@ -7,8 +12,9 @@ class SRDataset(Dataset):
     """
     A PyTorch Dataset to be used by a PyTorch DataLoader.
     """
-    def __init__(self, video_path: str, split: str, crop_size: int, scaling_factor: int, lr_img_type: str, hr_img_type: str):
+    def __init__(self, video_path: str, device: str, split: str, crop_size: int, scaling_factor: int, lr_img_type: str, hr_img_type: str):
         self.video_path = video_path
+        self.device = device
         self.split = split
         self.crop_size = crop_size
         self.scaling_factor = scaling_factor
@@ -22,7 +28,9 @@ class SRDataset(Dataset):
         if self.split == 'train':
             assert self.crop_size % self.scaling_factor == 0, "Crop dimensions are not perfectly divisible by scaling factor! This will lead to a mismatch in the dimensions of the original HR patches and their super-resolved (SR) versions!"
 
-        self.images = utils.extractFrames(self.video_path)
+        # self.images = utils.extractFrames(self.video_path)
+        self.images = [None] * self.__len__()
+        self.codec = utils.getCodec(self.video_path)
         # Select the correct set of transforms
         self.transform = ImageTransforms(split=self.split,
                                          crop_size=self.crop_size,
@@ -32,10 +40,24 @@ class SRDataset(Dataset):
         
 
     def __getitem__(self, index):
+        if self.images[index] is None:
+            hwaccel = {}
+            if self.device == "cuda":
+                hwaccel = {"vcodec": f"{self.codec}_cuvid"}
+            elif self.device == "mps":
+                hwaccel = {"hwaccel": "videotoolbox"}
+            out, _ = (
+                ffmpeg
+                .input(self.video_path, ss=index, **hwaccel) # noaccurate_seek=None,
+                .output('pipe:', vframes=1, format='image2', vcodec='png', loglevel="quiet")
+                .run(capture_stdout=True)
+            )
+            self.images[index] = Image.open(io.BytesIO(out))
         img = self.images[index]
+
         # TODO: REMOVE
         import os
-        # img.save(os.path.join("test media/output/", f"{index}.png"))
+        img.save(os.path.join("test media/output/", f"{index}.png"))
         # print(f"Got {index}")
         img.convert("RGB")
         if img.width <= 96 or img.height <= 96:
@@ -45,4 +67,5 @@ class SRDataset(Dataset):
         return lr_img, hr_img
 
     def __len__(self):
-        return len(self.images)
+        # return len(self.images)
+        return int(ffmpeg.probe(self.video_path)["streams"][0]["nb_frames"])
