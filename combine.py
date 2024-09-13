@@ -4,8 +4,8 @@ from typing import List
 
 import utils
 
-pathList = ["/Users/teriyake/Documents/Projects/Coding Projects/Python Projects/Super-Resolution/test media/"]
-output = "/Users/teriyake/Documents/Projects/Coding Projects/Python Projects/Super-Resolution/test media/out.mp4"
+pathList = ["D:/Videos/Valorant/"]
+output = "D:/Videos/out.mp4"
 
 framerate = 1
 device = utils.getDevice()
@@ -39,10 +39,7 @@ print("Finished reading")
 command = ["ffmpeg"]
 
 if device == "cuda": # for hwacc)el
-    command.extend([
-        "-hwaccel", "cuda",
-        "-hwaccel_output_format", "cuda"
-        ])
+    command.extend(["-hwaccel", "cuda"])
 elif device == "mps":
     command.extend(["-hwaccel", "videotoolbox"])
 
@@ -61,7 +58,7 @@ command.extend([
 
 if device == "cuda": # for hwaccel
     command.extend([
-        "-c:v", "h264_nvenc",
+        "-c:v", "hevc_nvenc",
         "-preset", "slow"
         ])
 elif device == "mps":
