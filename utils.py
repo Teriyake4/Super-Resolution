@@ -5,6 +5,7 @@ import subprocess
 from typing import List
 import ffmpeg
 from PIL import Image
+import numpy as np
 import torch
 # from torchvision.transforms.functional import v2 as FT
 import torchvision.transforms.functional as FT
@@ -57,20 +58,69 @@ def readFileList(path: str) -> List[str]:
 
 def extractFrames(path: str) -> List[Image.Image]:
     numFrames = int(ffmpeg.probe(path)["streams"][0]["nb_frames"])
+    # out, _ = (
+    #     ffmpeg
+    #     .input(path)
+    #     .output('pipe:', format='rawvideo', pix_fmt='rgb24')
+    #     .run(capture_stdout=True, capture_stderr=True)
+    # )
+    # images = []
+    # for i in range(numFrames):
+    #     print(i)
+    #     frame_data = out[i * 1920 * 1080 * 3:(i + 1) * 1920 * 1080 * 3]
+    #     frame = np.frombuffer(frame_data, np.uint8).reshape((1920, 1080, 3))
+    #     images.append(Image.fromarray(frame))
+    # return images
+
+    # command = [
+    #     "ffmpeg",
+    #     "-i", path,
+    #     "-vf", "fps=1",  # Adjust the fps value as needed
+    #     "-f", "image2pipe",
+    #     "-vcodec", "png",
+    #     "-"
+    # ]
+    # process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # frames = []
+    # while True:
+    #     # Read a frame
+    #     in_bytes = process.stdout.read(1024 * 1024)
+    #     if not in_bytes:
+    #         break
+    #     # Convert bytes to a PIL image
+    #     frame = Image.open(io.BytesIO(in_bytes))
+    #     frames.append(frame)
+    # return frames
+
     hwaccel = {}
     device = getDevice()
     if device == "cuda":
         hwaccel = {"vcodec": f"{getCodec(path)}_cuvid"}
-    elif device == "mps":
+    if device == "mps":
         hwaccel = {"hwaccel": "videotoolbox"}
+    select = ""
+    for i in range(numFrames):
+        if i % 1000 == 0:
+            select += f"eq(n,{i})+"
+    select = select[:-1] # removes last "+" sign
     out, err = (
                 ffmpeg
                 .input(path, **hwaccel)
+                .filter("filter", select)
                 .output("pipe:", vsync="vfr", vframes=numFrames, format="image2pipe", vcodec="png", loglevel="quiet")
                 .run(capture_stdout=True) # run_async
             )
     frames = out.split(b"\x89PNG\r\n\x1a\n")
-    return [Image.open(io.BytesIO(b"\x89PNG\r\n\x1a\n" + frame)) for frame in frames if frame]
+    images = [Image.Image] * numFrames
+    i = 0
+    for frame in frames:
+        if frame:
+            image = Image.open(io.BytesIO(b"\x89PNG\r\n\x1a\n" + frame))
+            images[i] = image
+            i += 1
+        print(i)
+    # return [Image.open(io.BytesIO(b"\x89PNG\r\n\x1a\n" + frame)) for frame in frames if frame]
+    return images
 
 
 def convert_image(img, source, target):

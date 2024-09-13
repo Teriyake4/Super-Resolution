@@ -2,17 +2,13 @@ import time
 from torch import nn
 import torch
 from dataset import SRDataset
-from imagequeue import ImageQueue
 from utils import *
 import torch.backends.cudnn as cudnn
 from models import Generator, Discriminator, TruncatedVGG19
 
 # Data parameters
-dataPath = "filelist.txt"
-queueSize = 4096
-randomSeed = None
+video_path = "D:/Videos/out.mp4"
 device = torch.device(getDevice())
-batchSize = 1
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
 
@@ -102,13 +98,7 @@ def main():
     adversarial_loss_criterion = adversarial_loss_criterion.to(device)
 
     # Custom dataloaders
-    data = readFileList(dataPath)
-    videos = [path for path in data if path.endswith(".mp4")]
-    images = [path for path in data if not path.endswith(".mp4")]
-    queue = ImageQueue(queueSize=queueSize, randomSeed=randomSeed, batchSize=batchSize, useCuda=(getDevice() == "cuda"))
-    queue.addVideos(videos)
-    queue.addImages(images)
-    train_dataset = SRDataset(queue,
+    train_dataset = SRDataset(video_path,
                               split="train",
                               crop_size=crop_size,
                               scaling_factor=scaling_factor,
