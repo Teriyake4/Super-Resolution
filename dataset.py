@@ -29,6 +29,8 @@ class SRDataset(Dataset):
         if self.split == 'train':
             assert self.crop_size % self.scaling_factor == 0, "Crop dimensions are not perfectly divisible by scaling factor! This will lead to a mismatch in the dimensions of the original HR patches and their super-resolved (SR) versions!"
 
+        if os.path.splitext(self.path)[1] != ".mp4":
+            self.images = os.listdir(self.path)
         # self.images = utils.extractFrames(self.video_path)
         # Select the correct set of transforms
         self.transform = ImageTransforms(split=self.split,
@@ -43,7 +45,7 @@ class SRDataset(Dataset):
         if os.path.splitext(self.path)[1] == ".mp4":
             img = self.__getFromVideo(index)
         else:
-            img = Image.open(f"{self.path}{index}.png")
+            img = Image.open(self.images[index])
 
         img.convert("RGB")
         if img.width <= 96 or img.height <= 96:
@@ -56,7 +58,7 @@ class SRDataset(Dataset):
         # return len(self.images)
         if os.path.splitext(self.path)[1] == ".mp4":
             return int(ffmpeg.probe(self.path)["streams"][0]["nb_frames"])
-        return len(os.listdir(self.path))
+        return len(self.images)
     
     def __getFromVideo(self, index):
         hwaccel = {}

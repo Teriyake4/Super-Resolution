@@ -156,3 +156,4 @@ dataset/
 .conda/
 .DS_Store
 filelist.txt
+.tar

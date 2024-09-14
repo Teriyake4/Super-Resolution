@@ -6,12 +6,12 @@ device = torch.device(getDevice())
 
 # Model checkpoints
 srgan_checkpoint = "./checkpoint_srgan.pth.tar"
-srresnet_checkpoint = "./srresnet.pth.tar"
+srresnet_checkpoint = "./checkpoint_srresnet.pth.tar"
 
 # Load models
-srresnet = torch.load(srresnet_checkpoint)['model'].to(device)
+srresnet = torch.load(srresnet_checkpoint, map_location=device)['model'].to(device)
 srresnet.eval()
-srgan_generator = torch.load(srgan_checkpoint)['generator'].to(device)
+srgan_generator = torch.load(srgan_checkpoint, map_location=device)['generator'].to(device)
 srgan_generator.eval()
 
 
@@ -67,28 +67,28 @@ def visualize_sr(img, halve=False):
 
     # Place bicubic-upsampled image
     grid_img.paste(bicubic_img, (margin, margin))
-    text_size = font.getsize("Bicubic")
+    text_size = font.getbbox("Bicubic")
     draw.text(xy=[margin + bicubic_img.width / 2 - text_size[0] / 2, margin - text_size[1] - 5], text="Bicubic",
               font=font,
               fill='black')
 
     # Place SRResNet image
     grid_img.paste(sr_img_srresnet, (2 * margin + bicubic_img.width, margin))
-    text_size = font.getsize("SRResNet")
+    text_size = font.getbbox("SRResNet")
     draw.text(
         xy=[2 * margin + bicubic_img.width + sr_img_srresnet.width / 2 - text_size[0] / 2, margin - text_size[1] - 5],
         text="SRResNet", font=font, fill='black')
 
     # Place SRGAN image
     grid_img.paste(sr_img_srgan, (margin, 2 * margin + sr_img_srresnet.height))
-    text_size = font.getsize("SRGAN")
+    text_size = font.getbbox("SRGAN")
     draw.text(
         xy=[margin + bicubic_img.width / 2 - text_size[0] / 2, 2 * margin + sr_img_srresnet.height - text_size[1] - 5],
         text="SRGAN", font=font, fill='black')
 
     # Place original HR image
     grid_img.paste(hr_img, (2 * margin + bicubic_img.width, 2 * margin + sr_img_srresnet.height))
-    text_size = font.getsize("Original HR")
+    text_size = font.getbbox("Original HR")
     draw.text(xy=[2 * margin + bicubic_img.width + sr_img_srresnet.width / 2 - text_size[0] / 2,
                   2 * margin + sr_img_srresnet.height - text_size[1] - 1], text="Original HR", font=font, fill='black')
 
@@ -99,4 +99,4 @@ def visualize_sr(img, halve=False):
 
 
 if __name__ == '__main__':
-    grid_img = visualize_sr("/media/ssd/sr data/Set14/baboon.png")
+    grid_img = visualize_sr("dataset/output/83.png")
