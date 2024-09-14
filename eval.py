@@ -1,6 +1,6 @@
 from utils import *
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
-from datasets import SRDataset
+from dataset import SRDataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

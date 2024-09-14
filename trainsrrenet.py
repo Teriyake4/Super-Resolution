@@ -7,9 +7,9 @@ from utils import *
 import torch.backends.cudnn as cudnn
 
 
-# video_path = "D:/Videos/out.mp4"
 # path = "test media/out.mp4"
 path = "test media/output/"
+path = "D:/Videos/output/"
 device = torch.device(getDevice())
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
@@ -25,12 +25,12 @@ checkpoint = None  # path to model checkpoint, None if none
 batch_size = 16  # batch size
 start_epoch = 0  # start at this epoch
 iterations = 1e6  # number of training iterations
-workers = 0  # number of workers for loading data in the DataLoader
-print_freq = 500  # print training status once every __ batches
+workers = 16  # number of workers for loading data in the DataLoader
+print_freq = 910  # print training status once every __ batches
 lr = 1e-4  # learning rate
 grad_clip = None  # clip if gradients are exploding
 
-print(f"Device: {device}")
+# print(f"Device: {device}")
 
 cudnn.benchmark = True
 
