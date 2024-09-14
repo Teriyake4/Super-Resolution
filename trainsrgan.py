@@ -7,7 +7,9 @@ import torch.backends.cudnn as cudnn
 from models import Generator, Discriminator, TruncatedVGG19
 
 # Data parameters
-video_path = "D:/Videos/out.mp4"
+# path = "test media/out.mp4"
+path = "test media/output/"
+# path = "D:/Videos/output/"
 device = torch.device(getDevice())
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
@@ -98,7 +100,7 @@ def main():
     adversarial_loss_criterion = adversarial_loss_criterion.to(device)
 
     # Custom dataloaders
-    train_dataset = SRDataset(video_path,
+    train_dataset = SRDataset(path,
                               device,
                               split="train",
                               crop_size=crop_size,
@@ -110,6 +112,7 @@ def main():
 
     # Total number of epochs to train for
     epochs = int(iterations // len(train_loader) + 1)
+    print(f"Total epochs {epochs}")
 
     # Epochs
     for epoch in range(start_epoch, epochs):
@@ -119,6 +122,7 @@ def main():
             adjust_learning_rate(optimizer_g, 0.1)
             adjust_learning_rate(optimizer_d, 0.1)
 
+        current_time = time.time()
         # One epoch's training
         train(train_loader=train_loader,
               generator=generator,
@@ -137,6 +141,8 @@ def main():
                     'optimizer_g': optimizer_g,
                     'optimizer_d': optimizer_d},
                    'checkpoint_srgan.pth.tar')
+        print(f"Saved checkpoint at epoch {epoch}")
+        print("Current time in seconds since the epoch:", time.time() - current_time)
 
 
 def train(train_loader, generator, discriminator, truncated_vgg19, content_loss_criterion, adversarial_loss_criterion,

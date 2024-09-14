@@ -5,11 +5,11 @@ from dataset import SRDataset
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Data
-data_folder = "./"
+data_folder = "./dataset/"
 test_data_names = ["Set5", "Set14", "BSDS100"]
 
 # Model checkpoints
-srgan_checkpoint = "./checkpoint_srgan.pth.tar"
+srgan_checkpoint = "./srgan.pth.tar"
 srresnet_checkpoint = "./checkpoint_srresnet.pth.tar"
 
 # Load model, either the SRResNet or the SRGAN

@@ -52,7 +52,7 @@ class SRDataset(Dataset):
     def __len__(self):
         # return len(self.images)
         if os.path.splitext(self.path)[1] == ".mp4":
-            return int(ffmpeg.probe(self.video_path)["streams"][0]["nb_frames"])
+            return int(ffmpeg.probe(self.path)["streams"][0]["nb_frames"])
         return len(os.listdir(self.path))
     
     def __getFromVideo(self, index):
