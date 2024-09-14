@@ -9,10 +9,10 @@ import ffmpeg
 import utils
 
 
-# input = "test media/out.mp4"
-# output = "test media/output/"
-input = "D:/Videos/out.mp4"
-output = "D:/Videos/output/"
+input = "dataset/out.mp4"
+output = "dataset/output/"
+# input = "D:/Videos/out.mp4"
+# output = "D:/Videos/output/"
 
 framerate = 1
 device = utils.getDevice()

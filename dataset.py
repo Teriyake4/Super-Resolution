@@ -40,7 +40,10 @@ class SRDataset(Dataset):
 
     def __getitem__(self, index):
         # print(f"Index: : {index}")
-        img = Image.open(f"{self.path}{index}.png")
+        if os.path.splitext(self.path)[1] == ".mp4":
+            img = self.__getFromVideo(index)
+        else:
+            img = Image.open(f"{self.path}{index}.png")
 
         img.convert("RGB")
         if img.width <= 96 or img.height <= 96:
@@ -64,7 +67,7 @@ class SRDataset(Dataset):
         try:
             out, err = (
                 ffmpeg
-                .input(self.video_path, ss=index, **hwaccel) # noaccurate_seek=None,
+                .input(self.path, ss=index, **hwaccel) # noaccurate_seek=None,
                 .output('pipe:', vframes=1, format='image2', vcodec='png') # loglevel="quiet"
                 .run(capture_stdout=True, capture_stderr=True)
             )
