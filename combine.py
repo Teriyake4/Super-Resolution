@@ -40,7 +40,7 @@ print("Finished reading")
 
 command = ["ffmpeg"]
 
-if device == "cuda": # for hwacc)el
+if device == "cuda": # for hwaccel
     command.extend(["-hwaccel", "cuda"])
 elif device == "mps":
     command.extend(["-hwaccel", "videotoolbox"])
