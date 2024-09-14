@@ -8,8 +8,8 @@ from models import Generator, Discriminator, TruncatedVGG19
 
 # Data parameters
 # path = "test media/out.mp4"
-path = "test media/output/"
-# path = "D:/Videos/output/"
+# path = "test media/output/"
+path = "D:/Videos/output/"
 device = torch.device(getDevice())
 crop_size = 96  # crop size of target HR images
 scaling_factor = 4  # the scaling factor for the generator; the input LR images will be downsampled from the target HR images by this factor
@@ -32,7 +32,7 @@ checkpoint = None  # path to model (SRGAN) checkpoint, None if none
 batch_size = 16  # batch size
 start_epoch = 0  # start at this epoch
 iterations = 2e5  # number of training iterations
-workers = 4  # number of workers for loading data in the DataLoader
+workers = 8  # number of workers for loading data in the DataLoader
 vgg19_i = 5  # the index i in the definition for VGG loss; see paper or models.py
 vgg19_j = 4  # the index j in the definition for VGG loss; see paper or models.py
 beta = 1e-3  # the coefficient to weight the adversarial loss in the perceptual loss
